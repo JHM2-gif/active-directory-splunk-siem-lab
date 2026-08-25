@@ -115,10 +115,11 @@ Sysmon permite registrar eventos relacionados con:
 - Archivos y procesos del sistema.
 - Otros eventos relevantes para análisis de seguridad.
 
-*Ref. 5: Sysmon ejecutándose correctamente.*
+![Eventos de Sysmon en Target-PC](sysmon-eventos-target.png)
+
+*Sysmon generando eventos de telemetría en Target-PC mediante el registro Operational.*
 
 ---
-
 ### 6. Splunk Universal Forwarder
 
 Splunk Universal Forwarder fue instalado en:
