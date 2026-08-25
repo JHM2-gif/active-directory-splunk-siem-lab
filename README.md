@@ -47,9 +47,7 @@ El entorno fue construido utilizando Oracle VirtualBox y una red virtual compart
 | Ubuntu Server | Splunk Enterprise | 192.168.10.10 |
 | Windows Server 2022 | Controlador de Dominio / DNS | 192.168.10.7 |
 | Windows 10 Pro | Target-PC / Endpoint del dominio | DHCP |
-| Kali Linux | Simulación de actividad | Pendiente |
-
-*Ref. 1: Arquitectura del laboratorio virtual.*
+| Kali Linux | Simulación de actividad | 192.168.10.250 |
 
 ---
 
@@ -81,7 +79,7 @@ Dominio configurado:
 
 `paquito.local`
 
-*Ref. 3: Configuración del Controlador de Dominio.*
+![Dominio paquito.local en Active Directory](active-directory-paquito-local.png)
 
 ---
 
@@ -178,8 +176,6 @@ Splunk mostró correctamente los siguientes hosts:
 - `Target-pc`
 
 ![Hosts detectados en Splunk](splunk-hosts-ad-target.png)
-
-*Ref. 8: Splunk mostrando los dos hosts monitoreados.*
 
 Esto confirma que ambos equipos están generando y enviando telemetría hacia el SIEM.
 
