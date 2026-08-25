@@ -130,8 +130,9 @@ Ambos sistemas fueron configurados para enviar eventos hacia:
 
 `192.168.10.10:9997`
 
-*Ref. 6: Configuración de Splunk Universal Forwarder.*
+![Splunk Universal Forwarder conectado](splunk-forwarder-target.png)
 
+*Splunk Universal Forwarder de Target-PC conectado correctamente a 192.168.10.10:9997.*
 ---
 
 ### 7. Recolección de eventos de Windows
