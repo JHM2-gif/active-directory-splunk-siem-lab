@@ -95,9 +95,11 @@ Posteriormente, `Target-PC` fue unido correctamente al dominio:
 
 `paquito.local`
 
-Esto permite autenticar usuarios creados desde Active Directory directamente en la máquina objetivo.
+![Target-PC unido al dominio](target-pc-dominio.png)
 
-*Ref. 4: Target-PC unido correctamente al dominio.*
+*Target-PC unido correctamente al dominio paquito.local.*
+
+Esto permite autenticar usuarios creados desde Active Directory directamente en la máquina objetivo.
 
 ---
 
