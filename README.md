@@ -40,6 +40,8 @@ En la siguiente fase del proyecto se utilizará Kali Linux para generar activida
 
 El entorno fue construido utilizando Oracle VirtualBox y una red virtual compartida entre las máquinas.
 
+![Arquitectura del laboratorio](arquitectura-laboratorio.png)
+
 | Sistema | Función | Dirección IP |
 |---|---|---|
 | Ubuntu Server | Splunk Enterprise | 192.168.10.10 |
