@@ -159,9 +159,11 @@ Configuración utilizada:
     disabled = false
     renderXml = true
 
-Esta configuración permite centralizar eventos de Windows y Sysmon dentro de Splunk.
+![Configuración de inputs.conf](splunk-inputs-conf.png)
 
-*Ref. 7: Configuración del archivo inputs.conf.*
+*Configuración de inputs.conf utilizada para recolectar eventos de Windows y Sysmon.*
+
+Esta configuración permite centralizar eventos de Windows y Sysmon dentro de Splunk.
 
 ---
 
