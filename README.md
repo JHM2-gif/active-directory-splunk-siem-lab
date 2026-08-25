@@ -177,9 +177,11 @@ Splunk mostró correctamente los siguientes hosts:
 - `ADDC01`
 - `Target-pc`
 
-Esto confirma que ambos equipos están generando y enviando telemetría hacia el SIEM.
+![Hosts detectados en Splunk](splunk-hosts-ad-target.png)
 
 *Ref. 8: Splunk mostrando los dos hosts monitoreados.*
+
+Esto confirma que ambos equipos están generando y enviando telemetría hacia el SIEM.
 
 ---
 
