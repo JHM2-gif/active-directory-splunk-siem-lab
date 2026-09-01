@@ -2,13 +2,15 @@
 
 ## Objetivo
 
-El objetivo de este proyecto es construir un laboratorio controlado de ciberseguridad integrando Active Directory, Sysmon y Splunk Enterprise.
+El objetivo de este proyecto es construir un laboratorio controlado de ciberseguridad integrando Active Directory, Sysmon, Splunk Enterprise y Atomic Red Team.
 
 El entorno simula una pequeña red empresarial en la que distintos sistemas Windows generan telemetría de seguridad que es enviada a un SIEM centralizado para su monitoreo y análisis.
 
-Actualmente, el laboratorio cuenta con un servidor Windows funcionando como Controlador de Dominio, una máquina Windows 10 Pro unida al dominio, Sysmon para generar telemetría avanzada y Splunk Universal Forwarder para centralizar los registros en Splunk Enterprise.
+El laboratorio cuenta con un servidor Windows Server 2022 funcionando como Controlador de Dominio y servidor DNS, una máquina Windows 10 Pro unida al dominio, Sysmon para generar telemetría avanzada y Splunk Universal Forwarder para centralizar los registros en Splunk Enterprise.
 
-En la siguiente fase del proyecto se utilizará Kali Linux para generar actividad controlada contra la máquina objetivo y analizar posteriormente los eventos generados dentro de Splunk.
+También se incorporó Kali Linux como máquina destinada a pruebas controladas y Atomic Red Team en `Target-PC` para generar actividad basada en técnicas de MITRE ATT&CK.
+
+Como primera simulación se ejecutó la técnica `T1082 - System Information Discovery`. La actividad generada fue registrada por Sysmon y posteriormente identificada en Splunk mediante consultas SPL.
 
 ### Habilidades aprendidas
 
@@ -20,19 +22,26 @@ En la siguiente fase del proyecto se utilizará Kali Linux para generar activida
 - Configuración de direcciones IP estáticas, DNS y DHCP.
 - Integración de equipos Windows a un dominio de Active Directory.
 - Resolución de problemas de red y envío de logs.
-- Análisis básico de eventos mediante Splunk Search Processing Language (SPL).
+- Análisis de eventos mediante Splunk Search Processing Language (SPL).
 - Administración básica de Windows Server y Ubuntu Server.
+- Ejecución de simulaciones controladas mediante Atomic Red Team.
+- Identificación de técnicas MITRE ATT&CK mediante telemetría de Sysmon.
+- Extracción y análisis de campos XML utilizando `rex` en consultas SPL.
+- Troubleshooting de problemas de ingestión de eventos en Splunk.
 
 ### Herramientas utilizadas
 
 - **Splunk Enterprise:** recepción, búsqueda y análisis centralizado de eventos.
 - **Splunk Universal Forwarder:** envío de registros desde los equipos Windows hacia Splunk.
 - **Sysmon:** generación de telemetría avanzada en sistemas Windows.
+- **Atomic Red Team:** framework utilizado para generar actividad controlada basada en técnicas de MITRE ATT&CK.
 - **Windows Server 2022:** Active Directory Domain Services y DNS.
 - **Windows 10 Pro:** endpoint monitoreado y máquina objetivo.
 - **Ubuntu Server:** sistema utilizado para alojar Splunk Enterprise.
-- **Kali Linux:** máquina destinada a futuras pruebas controladas.
+- **Kali Linux:** máquina destinada a realizar pruebas controladas dentro del laboratorio.
 - **Oracle VirtualBox:** plataforma de virtualización utilizada para construir el laboratorio.
+
+---
 
 ## Pasos
 
@@ -47,7 +56,7 @@ El entorno fue construido utilizando Oracle VirtualBox y una red virtual compart
 | Ubuntu Server | Splunk Enterprise | 192.168.10.10 |
 | Windows Server 2022 | Controlador de Dominio / DNS | 192.168.10.7 |
 | Windows 10 Pro | Target-PC / Endpoint del dominio | DHCP |
-| Kali Linux | Simulación de actividad | 192.168.10.250 |
+| Kali Linux | Máquina para pruebas controladas | 192.168.10.250 |
 
 ---
 
@@ -59,11 +68,11 @@ El servidor fue configurado con la dirección IP estática:
 
 `192.168.10.10`
 
-Además, Splunk fue configurado para recibir eventos provenientes de Splunk Universal Forwarder mediante el puerto:
+Splunk Enterprise utiliza su interfaz web para realizar búsquedas y análisis de eventos.
+
+Además, el servidor fue configurado para recibir eventos provenientes de Splunk Universal Forwarder mediante el puerto:
 
 `9997`
-
-*Ref. 2: Splunk Enterprise ejecutándose sobre Ubuntu Server.*
 
 ---
 
@@ -73,13 +82,15 @@ Windows Server 2022 fue configurado con la dirección IP estática:
 
 `192.168.10.7`
 
-Posteriormente se instaló Active Directory Domain Services junto con DNS y el servidor fue promovido a Controlador de Dominio.
+Posteriormente se instalaron Active Directory Domain Services y DNS, y el servidor fue promovido a Controlador de Dominio.
 
 Dominio configurado:
 
 `paquito.local`
 
 ![Dominio paquito.local en Active Directory](active-directory-paquito-local.png)
+
+*Dominio `paquito.local` configurado en Active Directory.*
 
 ---
 
@@ -97,7 +108,7 @@ Posteriormente, `Target-PC` fue unido correctamente al dominio:
 
 ![Target-PC unido al dominio](target-pc-dominio.png)
 
-*Target-PC unido correctamente al dominio paquito.local.*
+*Target-PC unido correctamente al dominio `paquito.local`.*
 
 Esto permite autenticar usuarios creados desde Active Directory directamente en la máquina objetivo.
 
@@ -105,14 +116,14 @@ Esto permite autenticar usuarios creados desde Active Directory directamente en 
 
 ### 5. Configuración de Sysmon
 
-Sysmon fue instalado tanto en Windows Server como en Windows 10 Pro para aumentar la visibilidad sobre la actividad de los endpoints.
+Sysmon fue instalado tanto en Windows Server 2022 como en Windows 10 Pro para aumentar la visibilidad sobre la actividad de los endpoints.
 
 Sysmon permite registrar eventos relacionados con:
 
 - Creación de procesos.
 - Conexiones de red.
 - Actividad del registro de Windows.
-- Archivos y procesos del sistema.
+- Creación y modificación de archivos.
 - Otros eventos relevantes para análisis de seguridad.
 
 ![Eventos de Sysmon en Target-PC](sysmon-eventos-target.png)
@@ -120,12 +131,13 @@ Sysmon permite registrar eventos relacionados con:
 *Sysmon generando eventos de telemetría en Target-PC mediante el registro Operational.*
 
 ---
+
 ### 6. Splunk Universal Forwarder
 
 Splunk Universal Forwarder fue instalado en:
 
 - Windows Server 2022.
-- Windows 10 Pro / Target-PC.
+- Windows 10 Pro / `Target-PC`.
 
 Ambos sistemas fueron configurados para enviar eventos hacia:
 
@@ -133,35 +145,38 @@ Ambos sistemas fueron configurados para enviar eventos hacia:
 
 ![Splunk Universal Forwarder conectado](splunk-forwarder-target.png)
 
-*Splunk Universal Forwarder de Target-PC conectado correctamente a 192.168.10.10:9997.*
+*Splunk Universal Forwarder de Target-PC conectado correctamente a `192.168.10.10:9997`.*
+
 ---
 
 ### 7. Recolección de eventos de Windows
 
-El endpoint Windows fue configurado para enviar distintos registros hacia Splunk.
+El endpoint Windows fue configurado para enviar diferentes registros hacia Splunk.
 
 Configuración utilizada:
 
-    [WinEventLog://Application]
-    index = endpoint
-    disabled = false
+```ini
+[WinEventLog://Application]
+index = endpoint
+disabled = false
 
-    [WinEventLog://Security]
-    index = endpoint
-    disabled = false
+[WinEventLog://Security]
+index = endpoint
+disabled = false
 
-    [WinEventLog://System]
-    index = endpoint
-    disabled = false
+[WinEventLog://System]
+index = endpoint
+disabled = false
 
-    [WinEventLog://Microsoft-Windows-Sysmon/Operational]
-    index = endpoint
-    disabled = false
-    renderXml = true
+[WinEventLog://Microsoft-Windows-Sysmon/Operational]
+index = endpoint
+disabled = false
+renderXml = true
+```
 
 ![Configuración de inputs.conf](splunk-inputs-conf.png)
 
-*Configuración de inputs.conf utilizada para recolectar eventos de Windows y Sysmon.*
+*Configuración de `inputs.conf` utilizada para recolectar eventos de Windows y Sysmon.*
 
 Esta configuración permite centralizar eventos de Windows y Sysmon dentro de Splunk.
 
@@ -173,17 +188,21 @@ Se confirmó que Splunk estaba recibiendo información proveniente de ambos sist
 
 Consulta SPL utilizada:
 
-    index=endpoint OR index=main
-    | stats count by host
+```spl
+index=endpoint OR index=main
+| stats count by host
+```
 
 Splunk mostró correctamente los siguientes hosts:
 
 - `ADDC01`
-- `Target-pc`
+- `Target-PC`
 
 ![Hosts detectados en Splunk](splunk-hosts-ad-target.png)
 
-Esto confirma que ambos equipos están generando y enviando telemetría hacia el SIEM.
+*Verificación de los hosts Windows enviando eventos hacia Splunk.*
+
+Esto confirmó que ambos equipos estaban generando y enviando telemetría hacia el SIEM.
 
 ---
 
@@ -207,7 +226,7 @@ ip a
 
 ![Configuración IP de Kali Linux](ip-kali.png)
 
-*Configuración de red de Kali Linux con la dirección IP estática 192.168.10.250.*
+*Configuración de red de Kali Linux con la dirección IP estática `192.168.10.250`.*
 
 La máquina `Target-PC` obtuvo mediante DHCP la dirección:
 
@@ -225,7 +244,7 @@ ping -c 4 192.168.10.6
 
 El resultado mostró:
 
-- 4 paquetes enviados.
+- 4 paquetes transmitidos.
 - 4 paquetes recibidos.
 - 0% de pérdida de paquetes.
 
@@ -277,7 +296,7 @@ Finalmente, los Atomics fueron descargados en:
 C:\AtomicRedTeam\atomics
 ```
 
-Con esto, Target-PC quedó preparado para ejecutar simulaciones controladas basadas en técnicas de **MITRE ATT&CK**.
+Con esto, `Target-PC` quedó preparado para ejecutar simulaciones controladas basadas en técnicas de **MITRE ATT&CK**.
 
 ---
 
@@ -287,7 +306,7 @@ Como primera simulación controlada se seleccionó:
 
 `T1082 - System Information Discovery`
 
-Esta técnica representa la recopilación de información sobre el sistema comprometido.
+Esta técnica representa la recopilación de información sobre el sistema.
 
 Primero se visualizaron las pruebas disponibles:
 
@@ -451,7 +470,7 @@ También se verificó nuevamente la conexión con el servidor Splunk:
 
 ![Validación del destino de Splunk Universal Forwarder](splunk-forwarder-output-validation.png)
 
-*Splunk Universal Forwarder conectado activamente al servidor 192.168.10.10 mediante el puerto 9997.*
+*Splunk Universal Forwarder conectado activamente al servidor `192.168.10.10` mediante el puerto `9997`.*
 
 Después de aplicar la corrección, Splunk comenzó nuevamente a recibir eventos recientes provenientes de `Target-PC`.
 
@@ -459,7 +478,7 @@ Después de aplicar la corrección, Splunk comenzó nuevamente a recibir eventos
 
 ### 14. Validación final del flujo de telemetría
 
-Para comprobar que Sysmon y Splunk Universal Forwarder continuaban funcionando correctamente después del troubleshooting, se generó una nueva ejecución de `cmd.exe` en Target-PC.
+Para comprobar que Sysmon y Splunk Universal Forwarder continuaban funcionando correctamente después del troubleshooting, se generó una nueva ejecución de `cmd.exe` en `Target-PC`.
 
 Sysmon registró localmente el proceso mediante:
 
@@ -521,7 +540,7 @@ Durante la construcción y validación del laboratorio se presentaron distintos 
 - Permisos necesarios para que Splunk Universal Forwarder pudiera acceder a Windows Event Logs.
 - Configuración de `inputs.conf` y `outputs.conf`.
 - Pérdida de los inputs personalizados de Windows Event Logs en Splunk Universal Forwarder.
-- Verificación de configuración mediante `btool`.
+- Verificación de la configuración efectiva mediante `btool`.
 - Eventos de Sysmon almacenados en XML sin extracción automática de `EventID`.
 - Extracción manual de campos utilizando `rex` en SPL.
 - Configuración de PowerShell necesaria para utilizar Atomic Red Team.
