@@ -88,7 +88,7 @@ Dominio configurado:
 
 `paquito.local`
 
-![Dominio paquito.local en Active Directory](active-directory-paquito-local.png)
+![Dominio paquito.local en Active Directory](screenshots/active-directory-paquito-local.png)
 
 *Dominio `paquito.local` configurado en Active Directory.*
 
@@ -106,7 +106,7 @@ Posteriormente, `Target-PC` fue unido correctamente al dominio:
 
 `paquito.local`
 
-![Target-PC unido al dominio](target-pc-dominio.png)
+![Target-PC unido al dominio](screenshots/target-pc-dominio.png)
 
 *Target-PC unido correctamente al dominio `paquito.local`.*
 
@@ -126,7 +126,7 @@ Sysmon permite registrar eventos relacionados con:
 - Creación y modificación de archivos.
 - Otros eventos relevantes para análisis de seguridad.
 
-![Eventos de Sysmon en Target-PC](sysmon-eventos-target.png)
+![Eventos de Sysmon en Target-PC](screenshots/sysmon-eventos-target.png)
 
 *Sysmon generando eventos de telemetría en Target-PC mediante el registro Operational.*
 
@@ -143,7 +143,7 @@ Ambos sistemas fueron configurados para enviar eventos hacia:
 
 `192.168.10.10:9997`
 
-![Splunk Universal Forwarder conectado](splunk-forwarder-target.png)
+![Splunk Universal Forwarder conectado](screenshots/splunk-forwarder-target.png)
 
 *Splunk Universal Forwarder de Target-PC conectado correctamente a `192.168.10.10:9997`.*
 
@@ -174,7 +174,7 @@ disabled = false
 renderXml = true
 ```
 
-![Configuración de inputs.conf](splunk-inputs-conf.png)
+![Configuración de inputs.conf](screenshots/splunk-inputs-conf.png)
 
 *Configuración de `inputs.conf` utilizada para recolectar eventos de Windows y Sysmon.*
 
@@ -198,7 +198,7 @@ Splunk mostró correctamente los siguientes hosts:
 - `ADDC01`
 - `Target-PC`
 
-![Hosts detectados en Splunk](splunk-hosts-ad-target.png)
+![Hosts detectados en Splunk](screenshots/splunk-hosts-ad-target.png)
 
 *Verificación de los hosts Windows enviando eventos hacia Splunk.*
 
@@ -224,7 +224,7 @@ Para verificar la configuración de red se utilizó:
 ip a
 ```
 
-![Configuración IP de Kali Linux](ip-kali.png)
+![Configuración IP de Kali Linux](screenshots/ip-kali.png)
 
 *Configuración de red de Kali Linux con la dirección IP estática `192.168.10.250`.*
 
@@ -232,7 +232,7 @@ La máquina `Target-PC` obtuvo mediante DHCP la dirección:
 
 `192.168.10.6`
 
-![Configuración IP de Target-PC](ip-targetpc.png)
+![Configuración IP de Target-PC](screenshots/ip-targetpc.png)
 
 *Dirección IP asignada a Target-PC dentro de la red del laboratorio.*
 
@@ -248,7 +248,7 @@ El resultado mostró:
 - 4 paquetes recibidos.
 - 0% de pérdida de paquetes.
 
-![Prueba de conectividad entre Kali Linux y Target-PC](ping-targetpc.png)
+![Prueba de conectividad entre Kali Linux y Target-PC](screenshots/ping-targetpc.png)
 
 *Prueba de conectividad exitosa desde Kali Linux hacia Target-PC.*
 
@@ -336,7 +336,7 @@ systeminfo
 
 y consultas al registro de Windows.
 
-![Ejecución de Atomic Red Team T1082](atomic-t1082-test1.png)
+![Ejecución de Atomic Red Team T1082](screenshots/atomic-t1082-test1.png)
 
 *Ejecución exitosa del test T1082-1 System Information Discovery mediante Atomic Red Team.*
 
@@ -377,7 +377,7 @@ C:\Windows\System32\systeminfo.exe
 
 También fue posible observar la línea de comandos y el proceso padre asociado a la actividad.
 
-![Detección de T1082 en Splunk](splunk-t1082-detection.png)
+![Detección de T1082 en Splunk](screenshots/splunk-t1082-detection.png)
 
 *Detección en Splunk de los procesos generados durante la ejecución del Atomic Test T1082-1.*
 
@@ -446,7 +446,7 @@ disabled = false
 renderXml = true
 ```
 
-![Validación de inputs.conf](splunk-forwarder-inputs-validation.png)
+![Validación de inputs.conf](screenshots/splunk-forwarder-inputs-validation.png)
 
 *Configuración utilizada por Splunk Universal Forwarder para recolectar Windows Event Logs y eventos de Sysmon.*
 
@@ -468,7 +468,7 @@ También se verificó nuevamente la conexión con el servidor Splunk:
 & "C:\Program Files\SplunkUniversalForwarder\bin\splunk.exe" list forward-server
 ```
 
-![Validación del destino de Splunk Universal Forwarder](splunk-forwarder-output-validation.png)
+![Validación del destino de Splunk Universal Forwarder](screenshots/splunk-forwarder-output-validation.png)
 
 *Splunk Universal Forwarder conectado activamente al servidor `192.168.10.10` mediante el puerto `9997`.*
 
@@ -504,7 +504,7 @@ Splunk identificó correctamente ejecuciones de:
 C:\Windows\System32\cmd.exe
 ```
 
-![Validación de creación de procesos en Splunk](splunk-cmd-process-validation.png)
+![Validación de creación de procesos en Splunk](screenshots/splunk-cmd-process-validation.png)
 
 *Validación final de eventos de creación de procesos enviados desde Target-PC hacia Splunk.*
 
