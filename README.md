@@ -187,30 +187,393 @@ Esto confirma que ambos equipos están generando y enviando telemetría hacia el
 
 ---
 
-### 9. Problemas resueltos durante la implementación
+### 9. Configuración de Kali Linux
 
-Durante la construcción del laboratorio se presentaron distintos problemas que requirieron diagnóstico y solución:
+Kali Linux fue configurado como la máquina destinada a realizar pruebas controladas dentro del laboratorio.
+
+Se configuró una dirección IP estática dentro de la misma red virtual utilizada por los demás sistemas.
+
+Configuración utilizada:
+
+- **Dirección IP:** `192.168.10.250/24`
+- **Gateway:** `192.168.10.1`
+- **DNS:** `8.8.8.8`
+
+Para verificar la configuración de red se utilizó:
+
+```bash
+ip a
+```
+
+![Configuración IP de Kali Linux](ip-kali.png)
+
+*Configuración de red de Kali Linux con la dirección IP estática 192.168.10.250.*
+
+La máquina `Target-PC` obtuvo mediante DHCP la dirección:
+
+`192.168.10.6`
+
+![Configuración IP de Target-PC](ip-targetpc.png)
+
+*Dirección IP asignada a Target-PC dentro de la red del laboratorio.*
+
+Posteriormente, se realizó una prueba de conectividad desde Kali Linux hacia Target-PC:
+
+```bash
+ping -c 4 192.168.10.6
+```
+
+El resultado mostró:
+
+- 4 paquetes enviados.
+- 4 paquetes recibidos.
+- 0% de pérdida de paquetes.
+
+![Prueba de conectividad entre Kali Linux y Target-PC](ping-targetpc.png)
+
+*Prueba de conectividad exitosa desde Kali Linux hacia Target-PC.*
+
+Esto confirmó que ambas máquinas pueden comunicarse correctamente dentro de la red `192.168.10.0/24`.
+
+---
+
+### 10. Instalación y preparación de Atomic Red Team
+
+Para generar actividad de seguridad de forma controlada dentro del endpoint, se instaló **Atomic Red Team** en `Target-PC`.
+
+Se creó una carpeta específica para almacenar sus componentes:
+
+```powershell
+New-Item -ItemType Directory -Path "C:\AtomicRedTeam" -Force
+```
+
+Para evitar que Microsoft Defender interfiriera con los archivos utilizados durante las simulaciones, se agregó únicamente esta carpeta como exclusión:
+
+```powershell
+Add-MpPreference -ExclusionPath "C:\AtomicRedTeam"
+```
+
+Posteriormente se instalaron los módulos necesarios de PowerShell:
+
+```powershell
+Install-Module -Name invoke-atomicredteam,powershell-yaml -Scope CurrentUser
+```
+
+La instalación fue verificada mediante:
+
+```powershell
+Get-Module -ListAvailable invoke-atomicredteam
+```
+
+También fue necesario permitir la ejecución de scripts para el usuario actual:
+
+```powershell
+Set-ExecutionPolicy RemoteSigned -Scope CurrentUser
+```
+
+Finalmente, los Atomics fueron descargados en:
+
+```text
+C:\AtomicRedTeam\atomics
+```
+
+Con esto, Target-PC quedó preparado para ejecutar simulaciones controladas basadas en técnicas de **MITRE ATT&CK**.
+
+---
+
+### 11. Ejecución de Atomic Red Team - T1082
+
+Como primera simulación controlada se seleccionó:
+
+`T1082 - System Information Discovery`
+
+Esta técnica representa la recopilación de información sobre el sistema comprometido.
+
+Primero se visualizaron las pruebas disponibles:
+
+```powershell
+Invoke-AtomicTest T1082 -ShowDetailsBrief
+```
+
+Posteriormente se verificaron los prerrequisitos del test número 1:
+
+```powershell
+Invoke-AtomicTest T1082 -TestNumbers 1 -CheckPrereqs
+```
+
+Los prerrequisitos fueron cumplidos correctamente.
+
+La prueba fue ejecutada mediante:
+
+```powershell
+Invoke-AtomicTest T1082 -TestNumbers 1
+```
+
+Durante la simulación se ejecutaron comandos destinados a obtener información del sistema, incluyendo:
+
+```text
+systeminfo
+```
+
+y consultas al registro de Windows.
+
+![Ejecución de Atomic Red Team T1082](atomic-t1082-test1.png)
+
+*Ejecución exitosa del test T1082-1 System Information Discovery mediante Atomic Red Team.*
+
+El test terminó correctamente con código de salida `0`.
+
+---
+
+### 12. Detección de la actividad en Splunk
+
+La actividad generada por Atomic Red Team fue registrada por Sysmon y posteriormente enviada hacia Splunk mediante Splunk Universal Forwarder.
+
+Los eventos de Sysmon estaban siendo almacenados utilizando el siguiente sourcetype:
+
+```text
+XmlWinEventLog:Microsoft-Windows-Sysmon/Operational
+```
+
+Debido a que los eventos llegaban en formato XML, se utilizó `rex` dentro de SPL para extraer campos relevantes directamente desde `_raw`.
+
+La siguiente consulta permitió identificar eventos de creación de procesos de Sysmon y localizar la ejecución de `systeminfo.exe`:
+
+```spl
+index=endpoint host="Target-PC" sourcetype="XmlWinEventLog:Microsoft-Windows-Sysmon/Operational"
+| rex field=_raw "<EventID[^>]*>(?<SysmonEventID>\d+)</EventID>"
+| search SysmonEventID=1
+| rex field=_raw "<Data Name='Image'>(?<Image>[^<]+)</Data>"
+| rex field=_raw "<Data Name='CommandLine'>(?<CommandLine>[^<]+)</Data>"
+| rex field=_raw "<Data Name='ParentImage'>(?<ParentImage>[^<]+)</Data>"
+| search Image="*systeminfo.exe" OR CommandLine="*systeminfo*"
+| table _time Image CommandLine ParentImage
+```
+
+La búsqueda permitió identificar:
+
+```text
+C:\Windows\System32\systeminfo.exe
+```
+
+También fue posible observar la línea de comandos y el proceso padre asociado a la actividad.
+
+![Detección de T1082 en Splunk](splunk-t1082-detection.png)
+
+*Detección en Splunk de los procesos generados durante la ejecución del Atomic Test T1082-1.*
+
+Esta prueba permitió validar el siguiente flujo:
+
+```text
+Atomic Red Team
+      ↓
+Target-PC
+      ↓
+Sysmon
+      ↓
+Splunk Universal Forwarder
+      ↓
+Splunk Enterprise
+      ↓
+Consulta SPL
+```
+
+De esta forma se comprobó que una actividad generada de manera controlada en el endpoint puede ser registrada, centralizada y posteriormente identificada desde el SIEM.
+
+---
+
+### 13. Troubleshooting de Splunk Universal Forwarder
+
+Durante las pruebas se detectó que Splunk tenía eventos históricos de `Target-PC`, pero no estaba recibiendo nuevos eventos.
+
+Se verificó inicialmente que el servicio de Splunk Universal Forwarder se encontraba activo:
+
+```powershell
+Get-Service SplunkForwarder
+```
+
+También se confirmó que el servidor configurado como destino seguía activo:
+
+```text
+192.168.10.10:9997
+```
+
+Sin embargo, mediante `btool` se identificó que los inputs personalizados de Windows Event Logs no estaban siendo cargados.
+
+Se recreó el archivo:
+
+```text
+C:\Program Files\SplunkUniversalForwarder\etc\system\local\inputs.conf
+```
+
+utilizando la siguiente configuración:
+
+```ini
+[WinEventLog://Application]
+index = endpoint
+disabled = false
+
+[WinEventLog://Security]
+index = endpoint
+disabled = false
+
+[WinEventLog://System]
+index = endpoint
+disabled = false
+
+[WinEventLog://Microsoft-Windows-Sysmon/Operational]
+index = endpoint
+disabled = false
+renderXml = true
+```
+
+![Validación de inputs.conf](splunk-forwarder-inputs-validation.png)
+
+*Configuración utilizada por Splunk Universal Forwarder para recolectar Windows Event Logs y eventos de Sysmon.*
+
+Posteriormente se reinició el servicio:
+
+```powershell
+Restart-Service SplunkForwarder
+```
+
+La configuración activa fue comprobada mediante:
+
+```powershell
+& "C:\Program Files\SplunkUniversalForwarder\bin\splunk.exe" btool inputs list --debug
+```
+
+También se verificó nuevamente la conexión con el servidor Splunk:
+
+```powershell
+& "C:\Program Files\SplunkUniversalForwarder\bin\splunk.exe" list forward-server
+```
+
+![Validación del destino de Splunk Universal Forwarder](splunk-forwarder-output-validation.png)
+
+*Splunk Universal Forwarder conectado activamente al servidor 192.168.10.10 mediante el puerto 9997.*
+
+Después de aplicar la corrección, Splunk comenzó nuevamente a recibir eventos recientes provenientes de `Target-PC`.
+
+---
+
+### 14. Validación final del flujo de telemetría
+
+Para comprobar que Sysmon y Splunk Universal Forwarder continuaban funcionando correctamente después del troubleshooting, se generó una nueva ejecución de `cmd.exe` en Target-PC.
+
+Sysmon registró localmente el proceso mediante:
+
+`Event ID 1 - Process Create`
+
+Posteriormente se utilizó la siguiente consulta en Splunk:
+
+```spl
+index=endpoint host="Target-PC" sourcetype="XmlWinEventLog:Microsoft-Windows-Sysmon/Operational"
+| rex field=_raw "<EventID[^>]*>(?<SysmonEventID>\d+)</EventID>"
+| search SysmonEventID=1
+| rex field=_raw "<Data Name='Image'>(?<Image>[^<]+)</Data>"
+| rex field=_raw "<Data Name='CommandLine'>(?<CommandLine>[^<]+)</Data>"
+| search Image="*cmd.exe"
+| table _time Image CommandLine
+| sort - _time
+| head 10
+```
+
+Splunk identificó correctamente ejecuciones de:
+
+```text
+C:\Windows\System32\cmd.exe
+```
+
+![Validación de creación de procesos en Splunk](splunk-cmd-process-validation.png)
+
+*Validación final de eventos de creación de procesos enviados desde Target-PC hacia Splunk.*
+
+Esto permitió confirmar nuevamente el funcionamiento del flujo completo:
+
+```text
+Target-PC
+   ↓
+Sysmon
+   ↓
+Splunk Universal Forwarder
+   ↓
+192.168.10.10:9997
+   ↓
+Splunk Enterprise
+   ↓
+Análisis mediante SPL
+```
+
+---
+
+### 15. Problemas resueltos durante la implementación
+
+Durante la construcción y validación del laboratorio se presentaron distintos problemas que requirieron diagnóstico y solución:
 
 - Conflicto entre DHCP y la dirección IP estática de Ubuntu Server.
 - Cloud-init reactivando DHCP después de reiniciar Ubuntu.
-- Windows 10 Home no permitía unir el equipo a un dominio de Active Directory.
+- Windows 10 Home no permitía unir el equipo a Active Directory.
 - Migración de la máquina objetivo a Windows 10 Pro.
-- Problemas de permisos de Splunk Universal Forwarder para leer Windows Event Logs.
-- Configuración de `inputs.conf` y `outputs.conf`.
+- Configuración del DNS de Target-PC hacia el Controlador de Dominio.
 - Problemas de comunicación entre máquinas virtuales.
-- Configuración de DNS necesaria para resolver correctamente el dominio.
 - Configuración del puerto `9997` para recepción de eventos.
-- Integración de Sysmon con Splunk Universal Forwarder.
+- Permisos necesarios para que Splunk Universal Forwarder pudiera acceder a Windows Event Logs.
+- Configuración de `inputs.conf` y `outputs.conf`.
+- Pérdida de los inputs personalizados de Windows Event Logs en Splunk Universal Forwarder.
+- Verificación de configuración mediante `btool`.
+- Eventos de Sysmon almacenados en XML sin extracción automática de `EventID`.
+- Extracción manual de campos utilizando `rex` en SPL.
+- Configuración de PowerShell necesaria para utilizar Atomic Red Team.
+- Integración y validación de Sysmon con Splunk Universal Forwarder.
 
-La resolución de estos problemas permitió adquirir experiencia práctica en troubleshooting de redes, Windows, Linux, Active Directory y plataformas SIEM.
+La resolución de estos problemas permitió adquirir experiencia práctica en troubleshooting de Windows, Linux, redes, Active Directory, Sysmon, Splunk y sistemas SIEM.
+
+---
+
+## Resultados del laboratorio
+
+Al finalizar esta fase del laboratorio se logró:
+
+- Implementar un dominio de Active Directory funcional.
+- Integrar un endpoint Windows 10 Pro al dominio `paquito.local`.
+- Implementar Sysmon para obtener telemetría avanzada.
+- Centralizar Windows Event Logs utilizando Splunk Universal Forwarder.
+- Configurar Splunk Enterprise como plataforma SIEM.
+- Configurar Kali Linux dentro de la misma infraestructura virtual.
+- Instalar y preparar Atomic Red Team.
+- Ejecutar una simulación basada en MITRE ATT&CK.
+- Ejecutar exitosamente la técnica `T1082 - System Information Discovery`.
+- Registrar la actividad generada mediante Sysmon.
+- Identificar `systeminfo.exe` dentro de Splunk.
+- Crear consultas SPL para analizar eventos XML de Sysmon.
+- Validar el flujo de telemetría desde Target-PC hasta Splunk.
+- Diagnosticar y resolver problemas reales de ingestión de logs.
+
+El laboratorio demuestra un flujo básico de trabajo similar al utilizado en operaciones de seguridad:
+
+```text
+Generación de actividad
+        ↓
+Recolección de telemetría
+        ↓
+Centralización de eventos
+        ↓
+Búsqueda y análisis
+        ↓
+Identificación de actividad
+```
+
+---
 
 ## Próximos pasos
 
-- Configurar Kali Linux dentro del laboratorio.
-- Generar actividad controlada contra Target-PC.
-- Simular múltiples intentos fallidos de autenticación.
-- Analizar los eventos generados en Splunk.
-- Identificar eventos de autenticación fallida.
-- Crear consultas SPL orientadas a detección.
-- Crear una regla básica para detectar posibles intentos de fuerza bruta.
-- Documentar el escenario de ataque y detección.
+Como ampliación futura del laboratorio se pueden realizar las siguientes actividades:
+
+- Ejecutar técnicas adicionales de Atomic Red Team.
+- Generar múltiples intentos fallidos de autenticación contra el entorno de Active Directory.
+- Analizar eventos de autenticación fallida en Windows.
+- Crear consultas SPL orientadas a detectar posibles intentos de fuerza bruta.
+- Crear alertas básicas dentro de Splunk.
+- Correlacionar diferentes fuentes de eventos.
+- Ampliar las simulaciones utilizando otras técnicas de MITRE ATT&CK.
